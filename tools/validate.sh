@@ -68,6 +68,22 @@ run_static_checks() {
             -o "${test_dir}/test_demo_${demo}_runtime"
         "${test_dir}/test_demo_${demo}_runtime"
     done
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
+        tests/test_mastermind_core.c main/mastermind_core.c \
+        -o "${test_dir}/test_mastermind_core"
+    "${test_dir}/test_mastermind_core"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
+        tests/test_solver_core.c main/mastermind_core.c main/solver_core.c \
+        -o "${test_dir}/test_solver_core"
+    "${test_dir}/test_solver_core"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
+        tests/test_game_rules.c main/mastermind_core.c main/game_rules.c \
+        -o "${test_dir}/test_game_rules"
+    "${test_dir}/test_game_rules"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
+        tests/test_achieve.c main/mastermind_core.c main/game_rules.c main/achieve.c \
+        -o "${test_dir}/test_achieve"
+    "${test_dir}/test_achieve"
     PYTHONDONTWRITEBYTECODE=1 python3 tests/test_battery_profile.py
     PYTHONDONTWRITEBYTECODE=1 python3 tests/test_deep_sleep_contract.py
     PYTHONDONTWRITEBYTECODE=1 python3 tests/test_key_wake_contract.py
@@ -75,6 +91,7 @@ run_static_checks() {
     PYTHONDONTWRITEBYTECODE=1 python3 tests/test_verify_firmware.py
     PYTHONDONTWRITEBYTECODE=1 python3 tests/test_archive_firmware.py
     PYTHONDONTWRITEBYTECODE=1 python3 tests/test_install_passport_skills.py
+    PYTHONDONTWRITEBYTECODE=1 python3 tests/test_font_inventory.py
     rm -rf "${test_dir}"
     echo "Host tests: PASS"
 }

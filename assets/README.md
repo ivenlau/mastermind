@@ -17,6 +17,28 @@ Store reusable font files and generated font sources in `fonts/`.
 - Check Flash and internal-RAM impact before adding a font; the ESP32-C3 has no PSRAM.
 - Do not commit fonts whose license does not permit redistribution.
 
+| File | Description |
+| --- | --- |
+| [`fonts/cipher_chars.txt`](fonts/cipher_chars.txt) | Character inventory (383 CJK/symbol chars) extracted from `main/` string literals; the `--symbols` input for every font below. ASCII 0x20-0x7E is included via `--range`. |
+| [`fonts/cipher_font_12.c`](fonts/cipher_font_12.c) · [`fonts/cipher_font_14.c`](fonts/cipher_font_14.c) · [`fonts/cipher_font_16.c`](fonts/cipher_font_16.c) | Noto Sans SC Regular subset, 12/14/16 px, bpp 4, uncompressed, for the Super Cipher Machine UI body/status text. |
+| [`fonts/cipher_font_20.c`](fonts/cipher_font_20.c) · [`fonts/cipher_font_28.c`](fonts/cipher_font_28.c) | Noto Sans SC Bold subset, 20/28 px, bpp 4, uncompressed, for titles and large numerals. |
+
+Source: Noto Sans SC (SIL Open Font License 1.1) static OTFs from
+`https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/SC/NotoSansSC-Regular.otf`
+(sha256 `faa6c9df…706d5ea9`) and `…/NotoSansSC-Bold.otf` (sha256 `c6cb5a93…0b64767c0`).
+The 8 MB source OTFs are kept outside the repository and are not committed.
+
+Conversion (pinned `lv_font_conv` 1.5.3, run from the workspace `fonttools/`):
+
+```bash
+python tools/gen_cipher_font.py --fonts-dir ../fonttools/fonts
+```
+
+Destination: compiled into `main` via `main/CMakeLists.txt` `target_sources`;
+symbols `cipher_font_12/14/16/20/28` with Montserrat fallback in `main/ui_font.c`.
+`tests/test_font_inventory.py` fails the static gate when UI text changes without
+regenerating. Flash cost of the five subsets is about 1.2 MB (8 MB Flash, plenty).
+
 ## Images
 
 Store reusable source images and generated display assets in `images/`.

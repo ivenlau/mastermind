@@ -15,6 +15,28 @@
 - 添加字库前评估 Flash 与内部 RAM 影响；ESP32-C3 无 PSRAM。
 - 不提交许可不允许分发的字库。
 
+| 文件 | 说明 |
+| --- | --- |
+| [`fonts/cipher_chars.txt`](fonts/cipher_chars.txt) | 字符清单：从 `main/` 字符串字面量提取的 383 个中文/符号字符，作为下述字库的 `--symbols` 输入；ASCII 0x20-0x7E 经 `--range` 加入。 |
+| [`fonts/cipher_font_12.c`](fonts/cipher_font_12.c) · [`fonts/cipher_font_14.c`](fonts/cipher_font_14.c) · [`fonts/cipher_font_16.c`](fonts/cipher_font_16.c) | Noto Sans SC Regular 子集，12/14/16 px，bpp 4 不压缩，用于超级密码机正文与状态文字。 |
+| [`fonts/cipher_font_20.c`](fonts/cipher_font_20.c) · [`fonts/cipher_font_28.c`](fonts/cipher_font_28.c) | Noto Sans SC Bold 子集，20/28 px，bpp 4 不压缩，用于标题与大数字。 |
+
+来源：Noto Sans SC（SIL Open Font License 1.1）静态 OTF，下载自
+`https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/SC/NotoSansSC-Regular.otf`
+（sha256 `faa6c9df…706d5ea9`）与 `…/NotoSansSC-Bold.otf`（sha256 `c6cb5a93…0b64767c0`）。
+8 MB 源 OTF 存放在仓库外，不提交。
+
+转换命令（固定 `lv_font_conv` 1.5.3，在工作区 `fonttools/` 下执行）：
+
+```bash
+python tools/gen_cipher_font.py --fonts-dir ../fonttools/fonts
+```
+
+目标位置：经 `main/CMakeLists.txt` 的 `target_sources` 编入 `main`；符号
+`cipher_font_12/14/16/20/28`，Montserrat 回退接线见 `main/ui_font.c`。
+UI 文案变更未重新生成时，`tests/test_font_inventory.py` 会令静态门槛失败。
+五档子集 Flash 成本约 1.2 MB（8 MB Flash 充裕）。
+
 ## 图片（images）
 
 可复用的源图与生成的显示资产放在 `images/`。

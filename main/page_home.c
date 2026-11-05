@@ -6,6 +6,7 @@
 #include "bsp_pins.h"
 
 #include "game_rules.h"
+#include "sleep_ctl.h"
 #include "page_achieve.h"
 #include "page_daily.h"
 #include "page_game.h"
@@ -124,6 +125,11 @@ static void home_exit(void) {
 }
 
 static bool home_key(bsp_btn_t btn, bsp_btn_ev_t ev) {
+    // 主页长按 OK = 手动休眠(需求;任意键唤醒)
+    if (btn == BSP_BTN_OK && ev == BSP_BTN_LONG) {
+        sleep_enter_deep();
+        return true;
+    }
     if (ev != BSP_BTN_PRESS && ev != BSP_BTN_CLICK) return false;
     if (btn == BSP_BTN_UP && ev == BSP_BTN_PRESS) {
         s_sel = (s_sel + HOME_ROWS - 1) % HOME_ROWS;

@@ -6,6 +6,8 @@ idf_component_register(
          "achieve.c"
          "store.c"
          "sound_player.c"
+         "sleep_ctl.c"
+         "screen_capture.c"
          "ui_theme.c"
          "ui_font.c"
          "ui_shell.c"

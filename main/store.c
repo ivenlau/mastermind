@@ -7,6 +7,7 @@
 #include "esp_timer.h"
 #include "nvs.h"
 #include "nvs_flash.h"
+#include "sys/time.h"
 #include "ui_theme.h"
 
 static const char *TAG = "store";
@@ -15,6 +16,8 @@ static const char *NVS_KEY_SAVE = "save";
 #define SAVE_VERSION 3
 
 static app_save_t s_save;
+
+static esp_err_t store_load(void);
 
 // 带版本头的 blob:版本不符时保留设置重置进度,并打日志说明,不静默吞掉。
 typedef struct {
@@ -33,7 +36,73 @@ static void defaults(app_save_t *s) {
     s->settings.tools[TOOL_FUSE] = 1;
 }
 
+// ---- 挂钟(参考 passport-os:IDF 系统时间 + RTC 深睡保持) ----
+// 开启 LIBC_TIME_SYSCALL_USE_RTC_HRT 后,系统时间偏移存 RTC 寄存器(跨深睡),
+// 深睡中 RTC 继续计数,time()/gettimeofday 自动走时——校时即 settimeofday,
+// 无需手动 tick 换算。NVS 仅作断电兜底(RTC 丢失后恢复上次落盘值)。
+#define CLOCK_EPOCH_MIN 1704067200LL   // 2024-01-01;早于此视为未校时
+
+static int64_t now_epoch_us(void) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    int64_t us = (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+    if (us >= CLOCK_EPOCH_MIN * 1000000LL) return us;
+    // 断电后 RTC 丢失:用 NVS 锚点 + 单调增量兜底
+    if (!time_is_set()) return -1;
+    int64_t elapsed_us = esp_timer_get_time() - s_save.settings.date_us;
+    if (elapsed_us < 0) elapsed_us = 0;
+    return ((int64_t)s_save.settings.date_day * 86400 + s_save.settings.date_sec) * 1000000
+           + elapsed_us;
+}
+
+static int64_t now_epoch_sec(void) {
+    int64_t us = now_epoch_us();
+    return (us < 0) ? -1 : us / 1000000;
+}
+
+static void clock_resume(void) {
+    // 深睡唤醒无需处理:系统时间由 RTC 自动保持(IDF 开机 esp_set_time_from_rtc)。
+    // 只有断电丢失 RTC 时,才用 NVS 兜底值重设系统时间。
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    if ((int64_t)tv.tv_sec < CLOCK_EPOCH_MIN && time_is_set()) {
+        tv.tv_sec = (time_t)((int64_t)s_save.settings.date_day * 86400
+                             + s_save.settings.date_sec);
+        tv.tv_usec = 0;
+        settimeofday(&tv, NULL);
+    }
+}
+
 esp_err_t store_init(void) {
+    esp_err_t err = store_load();
+    if (err == ESP_OK) clock_resume();
+    return err;
+}
+
+// 把当前挂钟时间落盘(断电兜底)。调用时机:入睡前、周期性。
+void time_persist_now(void) {
+    int64_t us = now_epoch_us();
+    if (us < 0) return;
+    int64_t epoch = us / 1000000;
+    s_save.settings.date_day = (uint32_t)(epoch / 86400);
+    s_save.settings.date_sec = (uint32_t)(epoch % 86400);
+    s_save.settings.date_us = esp_timer_get_time();
+    store_flush();
+}
+
+void time_hms(int *h, int *m, int *s) {
+    int64_t us = now_epoch_us();
+    if (us < 0) {
+        *h = *m = *s = -1;
+        return;
+    }
+    uint32_t sec_of_day = (uint32_t)((us / 1000000) % 86400);
+    *h = (int)(sec_of_day / 3600);
+    *m = (int)((sec_of_day % 3600) / 60);
+    *s = (int)(sec_of_day % 60);
+}
+
+static esp_err_t store_load(void) {
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         // 分区被写满/版本异常:这是既有数据不可读的场景,擦除后从默认值起步。
@@ -130,16 +199,13 @@ bool time_is_set(void) {
 }
 
 uint32_t time_day_index(void) {
-    if (!time_is_set()) return 0;
-    int64_t elapsed_s = (esp_timer_get_time() - s_save.settings.date_us) / 1000000;
-    return s_save.settings.date_day + (uint32_t)((s_save.settings.date_sec + elapsed_s) / 86400);
+    int64_t epoch = now_epoch_sec();
+    return (epoch < 0) ? 0 : (uint32_t)(epoch / 86400);
 }
 
 int time_hour(void) {
-    if (!time_is_set()) return 0;
-    int64_t elapsed_s = (esp_timer_get_time() - s_save.settings.date_us) / 1000000;
-    uint32_t sec_of_day = (uint32_t)((s_save.settings.date_sec + elapsed_s) % 86400);
-    return (int)(sec_of_day / 3600);
+    int64_t epoch = now_epoch_sec();
+    return (epoch < 0) ? 0 : (int)((epoch % 86400) / 3600);
 }
 
 void time_get_date(int *year, int *month, int *day, int *hour) {
@@ -173,9 +239,12 @@ void time_get_date(int *year, int *month, int *day, int *hour) {
     if (hour) *hour = time_hour();
 }
 
-esp_err_t time_set_date(int year, int month, int day, int hour) {
+esp_err_t time_set_date(int year, int month, int day, int hour, int minute, int second) {
     // day_index 用简单日差算法(1970-01-01 起),足够播种与连签判定。
     if (year < 2024 || year > 2099 || month < 1 || month > 12 || day < 1 || day > 31) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) {
         return ESP_ERR_INVALID_ARG;
     }
     int64_t days = 0;
@@ -190,7 +259,12 @@ esp_err_t time_set_date(int year, int month, int day, int hour) {
     days += day - 1;
 
     s_save.settings.date_day = (uint32_t)days;
-    s_save.settings.date_sec = (uint32_t)(hour * 3600);
+    s_save.settings.date_sec = (uint32_t)(hour * 3600 + minute * 60 + second);
     s_save.settings.date_us = esp_timer_get_time();
+    // 校时写入系统时间:此后深睡/重启由 IDF 的 RTC 时基自动走时(参考 passport-os)
+    struct timeval tv;
+    tv.tv_sec = (time_t)((int64_t)days * 86400 + s_save.settings.date_sec);
+    tv.tv_usec = 0;
+    settimeofday(&tv, NULL);
     return store_flush();
 }

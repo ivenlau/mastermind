@@ -54,6 +54,9 @@ void store_daily_tick(void);
 bool time_is_set(void);
 uint32_t time_day_index(void);
 int time_hour(void);                      // 0..23
+// 时分秒(未设置时全 -1)。挂钟持久化:重启/深睡唤醒后继续走,到秒显示。
+void time_hms(int *h, int *m, int *s);
+void time_persist_now(void);              // 把当前挂钟落盘(入睡前/周期调用)
 // 反推当前公历(显示用);未设置时输出全 0。
 void time_get_date(int *year, int *month, int *day, int *hour);
-esp_err_t time_set_date(int year, int month, int day, int hour);
+esp_err_t time_set_date(int year, int month, int day, int hour, int minute, int second);

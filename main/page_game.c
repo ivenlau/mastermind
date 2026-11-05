@@ -128,11 +128,13 @@ static void anim_ready_delete(lv_anim_t *a) {
     if (a && a->var) lv_obj_delete((lv_obj_t *)a->var);
 }
 
-// 数字模式避开 7 号浅色珠(白/奶白底 + 白数字看不清,需求);
+// 数字模式用专用 10 色板(0-9 各一色,互不重复、拉开区分度,需求);
 // 数字墨色按底色明度自动黑/白,保证任何主题都可读。
 static uint32_t peg_color_of(int color) {
     const app_theme_t *t = theme_cur();
-    if (g.rules.colors > UI_PEG_COLORS) return t->peg[color % 7];
+    if (g.rules.colors > UI_PEG_COLORS) {
+        return t->digit_peg[color % UI_DIGIT_COLORS];
+    }
     return t->peg[color];
 }
 
@@ -1209,6 +1211,7 @@ static const app_page_t PAGE_GAME = {
     .enter = game_enter,
     .exit = game_exit,
     .key = game_key,
+    .no_auto_sleep = true,   // 对局中禁止静默自动休眠,避免丢局
 };
 
 const app_page_t *game_page(void) {

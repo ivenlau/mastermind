@@ -6,6 +6,7 @@
 
 #define UI_THEME_COUNT 5
 #define UI_PEG_COLORS  8     // 珠色板容量;模式用前 N 个
+#define UI_DIGIT_COLORS 10   // 数字模式专用色板(0-9 各一色,互不重复)
 
 typedef struct {
     uint32_t bg;             // 页面底色
@@ -23,6 +24,7 @@ typedef struct {
     uint32_t sel_ring;             // 选中环描边(必须与任何珠色都区分)
     uint32_t sel_glow;             // 选中环外发光
     uint32_t peg[UI_PEG_COLORS];   // 珠色 0..7(冷暖交替排布,相邻色差最大)
+    uint32_t digit_peg[UI_DIGIT_COLORS]; // 数字 0-9 专用色(互异,避免相近/回绕重复)
 } app_theme_t;
 
 // theme 0..UI_THEME_COUNT-1;越界回退 0。

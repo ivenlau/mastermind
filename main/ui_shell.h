@@ -17,6 +17,7 @@ typedef struct app_page {
     void (*enter)(void);                 // 创建页面内容(shell_content() 为父)
     void (*exit)(void);                  // 停掉页面自己的定时器/动画,再由 shell 删内容
     bool (*key)(bsp_btn_t btn, bsp_btn_ev_t ev);   // true=已消费;false 时外壳接管
+    bool no_auto_sleep;                  // 对局等不许静默自动休眠(避免丢局)
 } app_page_t;
 
 void shell_init(void);
@@ -28,6 +29,7 @@ void shell_reload(void);                   // 主题切换后重建当前页与�
 void shell_set_hints(const char *text);    // 底部按键提示
 void shell_set_title(const char *text);    // 顶栏标题
 void shell_toast(const char *title, const char *desc);   // 成就解锁等浮层
+bool shell_no_auto_sleep(void);            // 当前页是否禁止自动休眠
 
 lv_obj_t *shell_content(void);             // 当前页内容容器(持锁访问)
 

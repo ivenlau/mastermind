@@ -9,6 +9,7 @@
 #include "bsp_pins.h"
 #include "esp_log.h"
 
+#include "store.h"
 #include "ui_font.h"
 #include "ui_theme.h"
 
@@ -21,6 +22,7 @@ static const char *TAG = "shell";
 static lv_obj_t *s_screen;
 static lv_obj_t *s_top;
 static lv_obj_t *s_title;
+static lv_obj_t *s_time;
 static lv_obj_t *s_batt_box;
 static lv_obj_t *s_batt_fill;
 static lv_obj_t *s_batt_text;
@@ -54,9 +56,41 @@ static void battery_draw(int soc) {
     lv_label_set_text_fmt(s_batt_text, "%d%%", soc);
 }
 
+// 电量显示预热:深睡唤醒后电量计刚被唤醒,前一两个读数可能虚低,
+// 直接着色会出现红色低电闪跳(需求)。先中性显示,连续有效读数后再上色。
+static int s_batt_streak;
+
+static void battery_update(void) {
+    int soc = bsp_battery_soc();
+    if (soc < 0) {
+        s_batt_streak = 0;
+        battery_draw(-1);
+        return;
+    }
+    if (s_batt_streak < 1) {
+        s_batt_streak++;
+        battery_draw(-1);       // 首个有效读数只做预热,不显示
+        return;
+    }
+    battery_draw(soc);
+}
+
 static void battery_timer_cb(lv_timer_t *tmr) {
     (void)tmr;
-    battery_draw(bsp_battery_soc());
+    battery_update();
+}
+
+// 状态栏左侧时钟:精确到秒(需求)。日期未设置显示占位符。
+static void clock_timer_cb(lv_timer_t *tmr) {
+    (void)tmr;
+    if (!s_time) return;
+    int h, m, s;
+    time_hms(&h, &m, &s);
+    if (h < 0) {
+        lv_label_set_text(s_time, "--:--:--");
+    } else {
+        lv_label_set_text_fmt(s_time, "%02d:%02d:%02d", h, m, s);
+    }
 }
 
 // ---- 成就浮层 ----
@@ -189,6 +223,11 @@ void shell_set_title(const char *text) {
     lv_label_set_text(s_title, text ? text : "");
 }
 
+bool shell_no_auto_sleep(void) {
+    const app_page_t *cur = (s_top_idx >= 0) ? s_stack[s_top_idx] : NULL;
+    return cur ? cur->no_auto_sleep : false;
+}
+
 lv_obj_t *shell_content(void) {
     return s_content;
 }
@@ -260,8 +299,12 @@ void shell_init(void) {
     lv_obj_remove_flag(s_top, LV_OBJ_FLAG_SCROLLABLE);
 
     s_title = shell_label(s_top, "", font_ui_16(), t->text);
-    // 与右侧电量簇对称,并避开圆角可视区(r=30 时顶部中线安全边 ≈5px)。
-    lv_obj_align(s_title, LV_ALIGN_LEFT_MID, 18, 0);
+    // 标题居中(需求);时钟在左、电量在右。
+    lv_obj_align(s_title, LV_ALIGN_CENTER, 0, 0);
+
+    // 状态栏左侧时钟(到秒)
+    s_time = shell_label(s_top, "--:--:--", font_ui_12(), t->dim);
+    lv_obj_align(s_time, LV_ALIGN_LEFT_MID, 8, 0);
 
     // 电池图标:外框 + 电量条 + 百分比文本(数字紧贴图标左侧,避开右圆角)。
     s_batt_box = lv_obj_create(s_top);
@@ -287,7 +330,10 @@ void shell_init(void) {
     lv_obj_align(s_hint, LV_ALIGN_BOTTOM_MID, 0, -6);
 
     lv_screen_load(s_screen);
-    s_batt_timer = lv_timer_create(battery_timer_cb, 5000, NULL);
-    battery_draw(bsp_battery_soc());
+    s_batt_timer = lv_timer_create(battery_timer_cb, 2000, NULL);
+    lv_timer_create(clock_timer_cb, 1000, NULL);
+    battery_draw(-1);          // 启动先中性,预热后着色
+    s_batt_streak = 0;
+    clock_timer_cb(NULL);
     ESP_LOGI(TAG, "外壳就绪");
 }

@@ -7,6 +7,7 @@
 #include "bsp_display.h"
 
 #include "page_about.h"
+#include "sleep_ctl.h"
 #include "sound_player.h"
 #include "store.h"
 #include "ui_font.h"
@@ -22,8 +23,8 @@ typedef enum {
 
 static int s_sel;
 static sel_mode_t s_mode;
-static int s_date_field;              // 0=年 1=月 2=日 3=时
-static int s_date_val[4];
+static int s_date_field;              // 0=年 1=月 2=日 3=时 4=分 5=秒
+static int s_date_val[6];
 static int s_reset_sel;
 static lv_obj_t *s_rows[SET_ROWS];
 static lv_obj_t *s_value[SET_ROWS];
@@ -31,7 +32,7 @@ static lv_obj_t *s_overlay;
 
 static const char *row_name(int i) {
     static const char *N[SET_ROWS] = {
-        "主题", "音效", "音量", "亮度", "设置日期", "道具库存", "重置进度", "关于",
+        "主题", "音效", "音量", "亮度", "设置时间", "道具库存", "重置进度", "关于",
     };
     return N[i];
 }
@@ -53,9 +54,11 @@ static void settings_refresh(void) {
     lv_label_set_text_fmt(s_value[2], "%d/4", sv->settings.volume + 1);
     lv_label_set_text_fmt(s_value[3], "%d/4", sv->settings.brightness + 1);
     if (time_is_set()) {
-        int y, mo, d, h;
+        int y, mo, d, h, mi, s;
         time_get_date(&y, &mo, &d, &h);
-        lv_label_set_text_fmt(s_value[4], "%d-%02d-%02d", y, mo, d);
+        time_hms(&h, &mi, &s);
+        lv_label_set_text_fmt(s_value[4], "%d-%02d-%02d %02d:%02d", y, mo, d, h, mi);
+        lv_obj_set_style_text_font(s_value[4], font_ui_14(), 0);
     } else {
         lv_label_set_text(s_value[4], "未设置");
     }
@@ -85,25 +88,25 @@ static void date_overlay_refresh(void) {
     lv_obj_clean(s_overlay);
     lv_obj_t *title = shell_label(s_overlay, "设置日期", font_ui_20(), t->accent);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 2);
-    static const char *FIELDS[4] = { "年", "月", "日", "时" };
-    for (int i = 0; i < 4; i++) {
+    static const char *FIELDS[6] = { "年", "月", "日", "时", "分", "秒" };
+    // 6 格小框放年月日时分秒(需求):框宽 31、字号 12,数值与单位分层不重叠。
+    for (int i = 0; i < 6; i++) {
         lv_obj_t *f = lv_obj_create(s_overlay);
-        lv_obj_set_size(f, 46, 52);
-        lv_obj_set_pos(f, 6 + i * 50, 34);
+        lv_obj_set_size(f, 31, 52);
+        lv_obj_set_pos(f, 7 + i * 34, 34);
         lv_obj_set_style_bg_color(f, lv_color_hex(i == s_date_field ? t->stroke : t->bg),
                                   LV_PART_MAIN);
         lv_obj_set_style_bg_opa(f, LV_OPA_COVER, LV_PART_MAIN);
         lv_obj_set_style_border_width(f, i == s_date_field ? 2 : 0, LV_PART_MAIN);
         lv_obj_set_style_border_color(f, lv_color_hex(t->accent), LV_PART_MAIN);
         lv_obj_set_style_radius(f, 8, LV_PART_MAIN);
-        lv_obj_set_style_pad_all(f, 2, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(f, 1, LV_PART_MAIN);
         lv_obj_remove_flag(f, LV_OBJ_FLAG_SCROLLABLE);
-        // 数值与单位分层留白,互不重叠(需求);操作提示只留页面底部一处。
-        lv_obj_t *v = shell_label(f, "", font_ui_16(), t->text);
+        lv_obj_t *v = shell_label(f, "", font_ui_12(), t->text);
         lv_label_set_text_fmt(v, "%d", s_date_val[i]);
-        lv_obj_align(v, LV_ALIGN_TOP_MID, 0, 4);
+        lv_obj_align(v, LV_ALIGN_TOP_MID, 0, 5);
         lv_obj_t *u = shell_label(f, FIELDS[i], font_ui_12(), t->dim);
-        lv_obj_align(u, LV_ALIGN_BOTTOM_MID, 0, -3);
+        lv_obj_align(u, LV_ALIGN_BOTTOM_MID, 0, -4);
     }
 }
 
@@ -124,7 +127,7 @@ static void settings_enter(void) {
     lv_obj_t *content = shell_content();
 
     for (int i = 0; i < SET_ROWS; i++) {
-        s_rows[i] = shell_card(content, 12, 4 + i * 32, 216, 30);
+        s_rows[i] = shell_card(content, 12, 2 + i * 29, 216, 27);
         lv_obj_t *nm = shell_label(s_rows[i], row_name(i), font_ui_16(), t->text);
         lv_obj_align(nm, LV_ALIGN_LEFT_MID, 8, 0);
         s_value[i] = shell_label(s_rows[i], "", font_ui_16(), t->accent);
@@ -188,8 +191,8 @@ static bool settings_key(bsp_btn_t btn, bsp_btn_ev_t ev) {
         }
         if ((btn == BSP_BTN_UP || btn == BSP_BTN_DOWN) && ev == BSP_BTN_PRESS) {
             int dir = (btn == BSP_BTN_UP) ? 1 : -1;
-            static const int MAXV[4] = { 2099, 12, 31, 23 };
-            static const int MINV[4] = { 2024, 1, 1, 0 };
+            static const int MAXV[6] = { 2099, 12, 31, 23, 59, 59 };
+            static const int MINV[6] = { 2024, 1, 1, 0, 0, 0 };
             s_date_val[s_date_field] += dir;
             if (s_date_val[s_date_field] > MAXV[s_date_field]) s_date_val[s_date_field] = MINV[s_date_field];
             if (s_date_val[s_date_field] < MINV[s_date_field]) s_date_val[s_date_field] = MAXV[s_date_field];
@@ -199,11 +202,11 @@ static bool settings_key(bsp_btn_t btn, bsp_btn_ev_t ev) {
         }
         if (btn == BSP_BTN_OK && ev == BSP_BTN_CLICK) {
             sound_play(SND_TICK);
-            if (s_date_field < 3) {
+            if (s_date_field < 5) {
                 s_date_field++;
             } else {
                 if (time_set_date(s_date_val[0], s_date_val[1], s_date_val[2],
-                                  s_date_val[3]) == ESP_OK) {
+                                  s_date_val[3], s_date_val[4], s_date_val[5]) == ESP_OK) {
                     sound_play(SND_CONFIRM);
                 } else {
                     sound_play(SND_ERROR);
@@ -274,12 +277,19 @@ static bool settings_key(bsp_btn_t btn, bsp_btn_ev_t ev) {
             s_mode = SEL_DATE;
             s_date_field = 0;
             if (time_is_set()) {
-                time_get_date(&s_date_val[0], &s_date_val[1], &s_date_val[2], &s_date_val[3]);
+                int h, mi, se;
+                time_get_date(&s_date_val[0], &s_date_val[1], &s_date_val[2], &h);
+                time_hms(&h, &mi, &se);
+                s_date_val[3] = h;
+                s_date_val[4] = mi;
+                s_date_val[5] = se;
             } else {
                 s_date_val[0] = 2026;
                 s_date_val[1] = 1;
                 s_date_val[2] = 1;
                 s_date_val[3] = 12;
+                s_date_val[4] = 0;
+                s_date_val[5] = 0;
             }
             date_overlay_refresh();
             shell_set_hints("↑↓ 改数值 · OK 下一项 · 双击取消");

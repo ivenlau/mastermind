@@ -19,6 +19,8 @@
 
 #include "key_guard.h"
 #include "page_home.h"
+#include "screen_capture.h"
+#include "sleep_ctl.h"
 #include "sound_player.h"
 #include "store.h"
 #include "ui_font.h"
@@ -60,11 +62,20 @@ static void on_key(bsp_btn_t btn, bsp_btn_ev_t ev, void *user) {
 static void input_task(void *arg) {
     (void)arg;
     input_event_t input;
+    uint32_t persist_ticks = 0;
     for (;;) {
-        if (xQueueReceive(s_input_queue, &input, portMAX_DELAY) == pdTRUE) {
+        if (xQueueReceive(s_input_queue, &input, pdMS_TO_TICKS(2000)) == pdTRUE) {
+            sleep_ctl_kick();
             if (bsp_lvgl_lock(500)) {
                 shell_dispatch(input.btn, input.event);
                 bsp_lvgl_unlock();
+            }
+        } else {
+            // 空闲:自动休眠轮询 + 挂钟每 5 分钟落盘(断电兜底)
+            sleep_ctl_poll();
+            if (++persist_ticks >= 150) {
+                persist_ticks = 0;
+                time_persist_now();
             }
         }
     }
@@ -127,6 +138,7 @@ void app_main(void) {
     }
 
     esp_err_t input_err = input_dispatch_init();
+    screen_capture_init();               // FAP_SCREENSHOT_V1 串口截屏(只读)
     esp_err_t button_err = input_err == ESP_OK
                          ? bsp_button_init(on_key, NULL)
                          : ESP_ERR_INVALID_STATE;

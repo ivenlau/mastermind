@@ -14,6 +14,9 @@ static const app_theme_t THEMES[UI_THEME_COUNT] = {
         .sel_ring = 0xFFFFFF, .sel_glow = 0x000000,
         .peg = { 0xFF4136, 0x2ECC40, 0xFF8C1A, 0x4D7CFE,
                  0xFFD400, 0xB26BFF, 0x00E0E0, 0xFFFFFF },
+        .digit_peg = { 0xFF4136, 0x2ECC40, 0xFF8C1A, 0x00E0E0,
+                       0xFFD400, 0x4D7CFE, 0xB26BFF, 0xFFFFFF,
+                       0xFF6EC7, 0x8B5A2B },
     },
     {   // 黄铜机械
         .bg = 0x2B1D0E, .surface = 0x3E2C16, .stroke = 0x6B4E26,
@@ -24,6 +27,9 @@ static const app_theme_t THEMES[UI_THEME_COUNT] = {
         .sel_ring = 0xFFF8E7, .sel_glow = 0x1A1206,
         .peg = { 0xE04B3A, 0x7FB04A, 0x5599D1, 0xF2CE3E,
                  0xB36BC9, 0x3FC1B0, 0xE8804F, 0xF5EFD9 },
+        .digit_peg = { 0xFF5252, 0x7CFF6B, 0xFFB347, 0x59D0FF,
+                       0xFFE066, 0x6B8CFF, 0xD98CFF, 0xFFFFFF,
+                       0xFF85C8, 0x4DE0C0 },
     },
     {   // 糖果乐园(浅色)
         .bg = 0xFFF7ED, .surface = 0xFFFFFF, .stroke = 0xF2D5BA,
@@ -34,6 +40,9 @@ static const app_theme_t THEMES[UI_THEME_COUNT] = {
         .sel_ring = 0x2D3436, .sel_glow = 0xFFFFFF,
         .peg = { 0xD63031, 0x1E9E5A, 0x2B6CE0, 0xE8A200,
                  0x8E44AD, 0xE17055, 0x0FA3B1, 0x2D3436 },
+        .digit_peg = { 0xD63031, 0x1E9E5A, 0x2B6CE0, 0xE8A200,
+                       0x8E44AD, 0xE17055, 0x0FA3B1, 0x2D3436,
+                       0xF72585, 0x6D4C41 },
     },
     {   // 磷光终端
         .bg = 0x020402, .surface = 0x0A1F0A, .stroke = 0x1E4D2B,
@@ -44,6 +53,9 @@ static const app_theme_t THEMES[UI_THEME_COUNT] = {
         .sel_ring = 0xFFFFFF, .sel_glow = 0x000000,
         .peg = { 0xFF4444, 0x44FF44, 0xFFAA00, 0x4488FF,
                  0xFFFF44, 0xCC66FF, 0x44FFFF, 0xFFFFFF },
+        .digit_peg = { 0xFF4444, 0x44FF44, 0xFF8800, 0x4488FF,
+                       0xFFFF44, 0xCC66FF, 0x44FFFF, 0xFFFFFF,
+                       0xFF66CC, 0xB8860B },
     },
     {   // 复古木匣
         .bg = 0x3B2F2A, .surface = 0x54413A, .stroke = 0x7A5C48,
@@ -54,6 +66,9 @@ static const app_theme_t THEMES[UI_THEME_COUNT] = {
         .sel_ring = 0xF2E8D5, .sel_glow = 0x1E1712,
         .peg = { 0xD35445, 0x7FA650, 0x5B8FC9, 0xE8C24A,
                  0xB07BC4, 0x4FBFA8, 0xE58A5C, 0xF2E8D5 },
+        .digit_peg = { 0xD35445, 0x7FA650, 0x5B8FC9, 0xE8C24A,
+                       0xB07BC4, 0x4FBFA8, 0xE58A5C, 0xF2E8D5,
+                       0xD9679E, 0xA9A9B0 },
     },
 };
 

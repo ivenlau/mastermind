@@ -47,6 +47,9 @@ UI 文案变更未重新生成时，`tests/test_font_inventory.py` 会令静态�
 | [`images/readme-hardware-specs.png`](images/readme-hardware-specs.png) | 2172 × 724，PNG RGBA | 保留为可选技术参考图，不再用于首页主视觉。于 2026-09-17 使用内置图像生成工具为本仓库生成；已根据文档中的硬件能力契约核对图中的六项标签与参数。 |
 | [`images/logo-wordmark.png`](images/logo-wordmark.png) | 1648 × 336，PNG RGBA | 从仓库原始 `images/logo.png` 中精确裁切并去除背景的黑色字标；用于中英文项目 README 的浅色主题。 |
 | [`images/logo-wordmark-dark.png`](images/logo-wordmark-dark.png) | 1648 × 336，PNG RGBA | 提取字标的白色版本；README 使用 `<picture>` 在 GitHub 深色主题下显示。 |
+| [`images/screenshots/realshot5.png`](images/screenshots/realshot5.png) | 240 × 320，PNG | 实机截图：黄铜主题主页（状态栏时钟）。社区玩法更新的预留封面素材。 |
+| [`images/screenshots/realshot7.png`](images/screenshots/realshot7.png) | 240 × 320，PNG | 实机截图：标准模式对局棋盘（画布占位行）。社区玩法更新的预留封面素材。 |
+| [`images/screenshots/realshot8.png`](images/screenshots/realshot8.png) | 240 × 320，PNG | 实机截图：数字密码模式（十色数字珠）。社区玩法更新的预留封面素材。 |
 
 - 使用描述性命名，并记录尺寸、像素格式、转换步骤与目标路径。
 - 优先采用适合 240 × 320 RGB565 显示的格式，并纳入 Flash 与内部 RAM 考量。

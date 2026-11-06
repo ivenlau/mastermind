@@ -94,8 +94,8 @@ void screen_capture_init(void) {
     if (disp) {
         lv_display_add_event_cb(disp, flush_hook, LV_EVENT_FLUSH_START, NULL);
     }
-    // 栈给 4KB:printf/fwrite 链路较深。
-    if (xTaskCreate(capture_task, "screencap", 4096, NULL, 4, NULL) != pdPASS) {
+    // 栈 12KB:lv_refr_now 的全屏重绘调用链很深,4KB 会间歇性栈溢出致重启。
+    if (xTaskCreate(capture_task, "screencap", 12288, NULL, 4, NULL) != pdPASS) {
         ESP_LOGE(TAG, "截屏任务创建失败");
         return;
     }

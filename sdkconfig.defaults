@@ -34,6 +34,9 @@ CONFIG_FREERTOS_HZ=1000
 # 系统时间用 RTC+高精度定时器(参考 passport-os):时间偏移存 RTC 寄存器跨深睡
 # 保持,深睡中 RTC 继续计数,time()/gettimeofday 自动走时,无需手动补时。
 CONFIG_LIBC_TIME_SYSCALL_USE_RTC_HRT=y
+# 标准输出行尾用 LF:默认 CRLF 会给二进制流(FAP_SCREENSHOT_V1 帧)的每个
+# 0x0A 插 0x0D,导致截屏像素错位花屏。
+CONFIG_LIBC_STDOUT_LINE_ENDING_LF=y
 
 # --- Bluetooth LE / NimBLE ---
 # ESP32-C3 仅支持 BLE；示例只启用单连接 peripheral 所需的最小 host 配置。

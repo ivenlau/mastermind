@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "protocol": "FAP_SCREENSHOT_V1",
+  "source": "serial-framebuffer",
+  "screenshot": "realshot5.png",
+  "sha256": "9e1ab5f5645258ef789cb2f019c5711d047c69756c744a587dbbc6ba3728ae12",
+  "width": 240,
+  "height": 320,
+  "port": "COM6",
+  "capturedAt": 1793886490
+}

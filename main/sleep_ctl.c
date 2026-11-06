@@ -26,7 +26,7 @@
 
 static const char *TAG = "sleepctl";
 
-#define SLEEP_IDLE_US   (120LL * 1000 * 1000)   // 静默 2 分钟自动休眠
+#define SLEEP_IDLE_US   (120LL * 1000 * 1000)   // 全局默认:静默 2 分钟自动休眠
 
 static int64_t s_last_input_us;
 
@@ -39,8 +39,10 @@ void sleep_ctl_poll(void) {
         s_last_input_us = esp_timer_get_time();
         return;
     }
-    if (shell_no_auto_sleep()) return;            // 对局中不自动休眠(避免丢局)
-    if (esp_timer_get_time() - s_last_input_us >= SLEEP_IDLE_US) {
+    // 页面可放宽静默时限(对局页 5 分钟,给当局多留操作间隔),未覆盖用全局默认。
+    int64_t idle_us = shell_idle_timeout_us();
+    if (idle_us <= 0) idle_us = SLEEP_IDLE_US;
+    if (esp_timer_get_time() - s_last_input_us >= idle_us) {
         ESP_LOGI(TAG, "静默超时,自动休眠");
         sleep_enter_deep();
     }

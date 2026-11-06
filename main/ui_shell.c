@@ -244,9 +244,9 @@ void shell_set_title(const char *text) {
     lv_label_set_text(s_title, text ? text : "");
 }
 
-bool shell_no_auto_sleep(void) {
+int64_t shell_idle_timeout_us(void) {
     const app_page_t *cur = (s_top_idx >= 0) ? s_stack[s_top_idx] : NULL;
-    return cur ? cur->no_auto_sleep : false;
+    return cur ? cur->idle_timeout_us : 0;
 }
 
 lv_obj_t *shell_content(void) {

@@ -45,7 +45,6 @@ typedef struct {
     lv_obj_t *num;
     lv_obj_t *big[MM_MAX_SLOTS];
     lv_obj_t *digit[MM_MAX_SLOTS];   // 数字模式的大圆数字标签
-    lv_obj_t *mini[MM_MAX_SLOTS];    // 显影剂揭示的小点(平时隐藏)
     lv_obj_t *small[MM_MAX_SLOTS];   // 反馈小圆(空心→绿/黄填充)
 } board_row_t;
 
@@ -86,6 +85,8 @@ static lv_obj_t *s_info_lb;                  // 底部居中:第x步 · n种可�
 static int s_big;                            // 大圆直径(自适应)
 static int s_small;                          // 小圆直径
 static int s_row_y[SOLVER_MAX_GUESSES];      // 各行大圆 y(自适应布局)
+static int s_big_x[MM_MAX_SLOTS];            // 大圆列 x(自适应布局)
+static lv_obj_t *s_mini[MM_MAX_SLOTS];       // 显影小点(懒创建,整盘一组)
 
 static lv_obj_t *s_overlay;
 static lv_obj_t *s_ov_rows[OV_ROWS_MAX];
@@ -224,6 +225,10 @@ static void board_refresh(void) {
     const app_theme_t *t = theme_cur();
     bool show_answer = g.recorded || g.won;
 
+    for (uint8_t i = 0; i < MM_MAX_SLOTS; i++) {
+        if (s_mini[i]) lv_obj_add_flag(s_mini[i], LV_OBJ_FLAG_HIDDEN);
+    }
+
     for (int r = 0; r < g.rules.max_guesses && r < SOLVER_MAX_GUESSES; r++) {
         board_row_t *row = &s_rows[r];
         if (!row->num) continue;
@@ -252,16 +257,15 @@ static void board_refresh(void) {
                 if (row->digit[i]) lv_label_set_text(row->digit[i], "");
             }
 
-            // 显影小点:只在当前编辑行提示已揭示的真色
-            if (row->mini[i]) {
-                if (current && g.revealed[i]) {
-                    int color = g.code[i];
-                    lv_obj_remove_flag(row->mini[i], LV_OBJ_FLAG_HIDDEN);
-                    circle_fill(row->mini[i],
-                        color == MM_RAINBOW ? t->accent2 : peg_color_of(color));
-                } else {
-                    lv_obj_add_flag(row->mini[i], LV_OBJ_FLAG_HIDDEN);
+            // 显影小点:整盘一组懒创建,随当前行移动(省 60+ 常驻对象)
+            if (current && g.revealed[i]) {
+                uint32_t mc = (g.code[i] == MM_RAINBOW) ? t->accent2 : peg_color_of(g.code[i]);
+                if (s_mini[i]) {
+                    lv_obj_delete(s_mini[i]);
+                    s_mini[i] = NULL;
                 }
+                s_mini[i] = make_circle(shell_content(), s_big_x[i] + s_big - 4, s_row_y[r] - 2, 6);
+                if (s_mini[i]) circle_fill(s_mini[i], mc);
             }
 
             // 反馈小圆:绿=位对,黄=色对;空心=尚无反馈(暗牌只填绿)
@@ -920,6 +924,7 @@ static void game_enter(void) {
     for (int i = 0; i < SOLVER_MAX_GUESSES; i++) {
         memset(&s_rows[i], 0, sizeof(s_rows[i]));
     }
+    for (int i = 0; i < MM_MAX_SLOTS; i++) s_mini[i] = NULL;
 
     // 对局页不吃底部提示条的空间:内容区拉到底,全屏留给游戏(需求)。
     lv_obj_set_size(content, BSP_LCD_W, BSP_LCD_H - 28);
@@ -966,9 +971,7 @@ static void game_enter(void) {
                 row->digit[i] = shell_label(row->big[i], "", font_ui_14(), 0xFFFFFF);
                 if (row->digit[i]) lv_obj_center(row->digit[i]);
             }
-            // 显影小点挂在大圆右上角
-            row->mini[i] = make_circle(content, x + s_big - 4, y - 2, 6);
-            if (row->mini[i]) lv_obj_add_flag(row->mini[i], LV_OBJ_FLAG_HIDDEN);
+            s_big_x[i] = x;
             x += s_big + 4;
         }
         x += 8;
@@ -1040,10 +1043,10 @@ static bool game_key(bsp_btn_t btn, bsp_btn_ev_t ev) {
             sound_play(SND_TICK);
             return true;
         }
-        // UP/DOWN 用 PRESS 即时响应;两种模式都全色循环,不重复模式靠
-        // OK 确定时的 resolve_dup 解冲突(需求)。
+        // UP/DOWN 用 PRESS 即时响应;上键增大、下键减小(需求)。两种模式都
+        // 全色循环,不重复模式靠 OK 确定时的 resolve_dup 解冲突。
         if ((btn == BSP_BTN_UP || btn == BSP_BTN_DOWN) && ev == BSP_BTN_PRESS) {
-            int dir = (btn == BSP_BTN_UP) ? -1 : 1;
+            int dir = (btn == BSP_BTN_UP) ? 1 : -1;
             int c = g.cur[g.cursor];
             c = (c + dir + g.rules.colors) % g.rules.colors;
             g.cur[g.cursor] = (uint8_t)c;
@@ -1131,7 +1134,7 @@ static bool game_key(bsp_btn_t btn, bsp_btn_ev_t ev) {
             return true;
         }
         if ((btn == BSP_BTN_UP || btn == BSP_BTN_DOWN) && ev == BSP_BTN_PRESS) {
-            int dir = (btn == BSP_BTN_UP) ? -1 : 1;
+            int dir = (btn == BSP_BTN_UP) ? 1 : -1;
             g.tool_color_sel = (g.tool_color_sel + dir + g.rules.colors) % g.rules.colors;
             tool_color_refresh();
             sound_play(SND_TICK);

@@ -7,8 +7,13 @@
 #include "bsp_battery.h"
 #include "bsp_display.h"
 #include "bsp_pins.h"
+#include "esp_attr.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
+#include "battery_guard.h"
+#include "sleep_ctl.h"
 #include "store.h"
 #include "ui_font.h"
 #include "ui_theme.h"
@@ -40,39 +45,55 @@ static void anim_set_opa(void *obj, int32_t v) {
     lv_obj_set_style_opa((lv_obj_t *)obj, (lv_opa_t)v, 0);
 }
 
-// ---- 电池小组件:外框 + 电量条 + 百分比(-1 时只画图标) ----
+// ---- 电池小组件:外框 + 电量条 + 百分比 ----
+// 显示连续性(需求:唤醒不割裂):最后已知电量存 RTC 内存(跨深睡/重启),
+// 无效读数沿用旧值,不再出现"空图标→有色"的跳变;仅从未知状态起步显示 "--"。
+// 状态色阈值与 passport-os 一致:≤15 红、≤35 黄、其余绿。
+static RTC_DATA_ATTR int s_last_soc;          // 最后有效 SOC;负数=未知
+static RTC_DATA_ATTR uint32_t s_soc_magic;
+#define SOC_MAGIC 0x5B0A77E5u
+
 static void battery_draw(int soc) {
     const app_theme_t *t = theme_cur();
-    lv_obj_set_style_bg_color(s_batt_box, lv_color_hex(t->dim), LV_PART_MAIN);
+    if (soc >= 0 && soc <= 100) {
+        if (s_soc_magic == SOC_MAGIC || s_last_soc < 0) {
+            // 已知过就更新缓存;首次也记下
+        }
+        s_last_soc = soc;
+        s_soc_magic = SOC_MAGIC;
+    } else {
+        soc = (s_soc_magic == SOC_MAGIC && s_last_soc >= 0) ? s_last_soc : -1;
+    }
     if (soc < 0) {
         lv_obj_set_width(s_batt_fill, 2);
-        lv_label_set_text(s_batt_text, "");
+        lv_obj_set_style_bg_color(s_batt_fill, lv_color_hex(t->dim), LV_PART_MAIN);
+        lv_label_set_text(s_batt_text, "--");
         return;
     }
+    uint32_t color = (soc <= 15) ? t->bad : ((soc <= 35) ? t->warn : t->ok);
     int w = soc > 100 ? 100 : soc;
     lv_obj_set_width(s_batt_fill, 2 + (18 * w / 100));
-    lv_obj_set_style_bg_color(s_batt_fill,
-        lv_color_hex(soc <= 15 ? t->bad : t->ok), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s_batt_fill, lv_color_hex(color), LV_PART_MAIN);
     lv_label_set_text_fmt(s_batt_text, "%d%%", soc);
 }
 
-// 电量显示预热:深睡唤醒后电量计刚被唤醒,前一两个读数可能虚低,
-// 直接着色会出现红色低电闪跳(需求)。先中性显示,连续有效读数后再上色。
-static int s_batt_streak;
+// 低电量策略(passport-os battery_guard 同款):警告一次性,耗尽两连判保电休眠。
+static battery_guard_t s_batt_guard;
 
 static void battery_update(void) {
     int soc = bsp_battery_soc();
-    if (soc < 0) {
-        s_batt_streak = 0;
-        battery_draw(-1);
-        return;
-    }
-    if (s_batt_streak < 1) {
-        s_batt_streak++;
-        battery_draw(-1);       // 首个有效读数只做预热,不显示
-        return;
-    }
+    int mv = bsp_battery_mv();
     battery_draw(soc);
+    battery_action_t act = battery_guard_step(&s_batt_guard, soc, mv);
+    if (act == BATTERY_WARN) {
+        shell_toast("电量低", "请及时充电");
+    } else if (act == BATTERY_SHUTDOWN) {
+        ESP_LOGW(TAG, "电量耗尽(soc=%d mv=%d),休眠保电", soc, mv);
+        shell_toast("电量耗尽", "即将休眠保电");
+        time_persist_now();
+        vTaskDelay(pdMS_TO_TICKS(900));
+        sleep_enter_deep();
+    }
 }
 
 static void battery_timer_cb(lv_timer_t *tmr) {
@@ -332,8 +353,7 @@ void shell_init(void) {
     lv_screen_load(s_screen);
     s_batt_timer = lv_timer_create(battery_timer_cb, 2000, NULL);
     lv_timer_create(clock_timer_cb, 1000, NULL);
-    battery_draw(-1);          // 启动先中性,预热后着色
-    s_batt_streak = 0;
+    battery_draw(-1);          // 用 RTC 缓存的最后已知电量平滑起步(无效才显示 --)
     clock_timer_cb(NULL);
     ESP_LOGI(TAG, "外壳就绪");
 }

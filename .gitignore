@@ -11,3 +11,6 @@ managed_components/
 /.agents/skills/passport-build
 /.agents/skills/passport-device-test
 /.agents/skills/passport-debug
+
+# AI-tool session state written into the workspace (plans, caches); never repo content.
+/.zcode/

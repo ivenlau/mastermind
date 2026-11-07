@@ -117,8 +117,7 @@ void app_main(void) {
         return;
     }
     ui_fonts_init();
-    static const int BRIGHTNESS[4] = { 20, 50, 80, 100 };
-    bsp_display_backlight((uint8_t)BRIGHTNESS[sv->settings.brightness % 4]);
+    bsp_display_backlight((uint8_t)sleep_brightness_percent());
 
     if (sound_init() == ESP_OK) {
         sound_set_enabled(sv->settings.sound_on != 0);

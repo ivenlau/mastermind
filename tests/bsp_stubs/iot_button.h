@@ -21,3 +21,5 @@ typedef void (*button_cb_t)(void *, void *);
 esp_err_t iot_button_create(const button_config_t *, const button_driver_t *, button_handle_t *);
 esp_err_t iot_button_delete(button_handle_t);
 esp_err_t iot_button_register_cb(button_handle_t, button_event_t, button_event_args_t *, button_cb_t, void *);
+esp_err_t iot_button_stop(void);    // 停共享轮询定时器(浅睡准备用)
+esp_err_t iot_button_resume(void);  // 重启共享轮询定时器(浅睡恢复用)

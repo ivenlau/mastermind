@@ -249,6 +249,11 @@ int64_t shell_idle_timeout_us(void) {
     return cur ? cur->idle_timeout_us : 0;
 }
 
+int64_t shell_light_after_us(void) {
+    const app_page_t *cur = (s_top_idx >= 0) ? s_stack[s_top_idx] : NULL;
+    return cur ? cur->light_after_us : 0;
+}
+
 lv_obj_t *shell_content(void) {
     return s_content;
 }

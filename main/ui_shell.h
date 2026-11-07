@@ -17,7 +17,8 @@ typedef struct app_page {
     void (*enter)(void);                 // 创建页面内容(shell_content() 为父)
     void (*exit)(void);                  // 停掉页面自己的定时器/动画,再由 shell 删内容
     bool (*key)(bsp_btn_t btn, bsp_btn_ev_t ev);   // true=已消费;false 时外壳接管
-    int64_t idle_timeout_us;             // 页面自定静默时限;0=用全局默认(对局页放宽到 5 分钟)
+    int64_t idle_timeout_us;             // 深睡时限;0=用全局默认(对局页 5 分钟,唤醒即重启)
+    int64_t light_after_us;              // 浅睡时限;0=禁用浅睡(对局页 2 分钟,按键原地恢复)
 } app_page_t;
 
 void shell_init(void);
@@ -29,7 +30,8 @@ void shell_reload(void);                   // 主题切换后重建当前页与�
 void shell_set_hints(const char *text);    // 底部按键提示
 void shell_set_title(const char *text);    // 顶栏标题
 void shell_toast(const char *title, const char *desc);   // 成就解锁等浮层
-int64_t shell_idle_timeout_us(void);       // 当前页静默时限覆盖;0=无覆盖用全局默认
+int64_t shell_idle_timeout_us(void);       // 当前页深睡时限覆盖;0=无覆盖用全局默认
+int64_t shell_light_after_us(void);        // 当前页浅睡时限;0=该页禁用浅睡
 
 lv_obj_t *shell_content(void);             // 当前页内容容器(持锁访问)
 

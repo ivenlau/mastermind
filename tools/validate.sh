@@ -36,6 +36,9 @@ run_static_checks() {
         tests/test_key_guard.c -o "${test_dir}/test_key_guard"
     "${test_dir}/test_key_guard"
     "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
+        tests/test_sleep_policy.c -o "${test_dir}/test_sleep_policy"
+    "${test_dir}/test_sleep_policy"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
         tests/test_battery_guard.c -o "${test_dir}/test_battery_guard"
     "${test_dir}/test_battery_guard"
     "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Icomponents/bsp/src \

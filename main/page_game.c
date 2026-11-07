@@ -1214,7 +1214,8 @@ static const app_page_t PAGE_GAME = {
     .enter = game_enter,
     .exit = game_exit,
     .key = game_key,
-    .idle_timeout_us = 300LL * 1000 * 1000,   // 对局页静默 5 分钟自动休眠(唤醒即重启,当局作废)
+    .light_after_us = 120LL * 1000 * 1000,    // 静默 2 分钟浅睡:熄屏省电,任意键原地恢复对局
+    .idle_timeout_us = 300LL * 1000 * 1000,   // 静默累计 5 分钟转深睡(重启,当局作废)
 };
 
 const app_page_t *game_page(void) {

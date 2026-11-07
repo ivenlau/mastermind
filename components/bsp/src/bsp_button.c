@@ -236,6 +236,43 @@ int bsp_button_read_mv(void) {
     return mv;
 }
 
+// 见 bsp_button.h。非终态:只停轮询、不回收任何资源,与 prepare_deep_sleep 的
+// button_cleanup(终态)明确分开。停轮询后到 resume 前不会有任何事件或 ADC 读数。
+esp_err_t bsp_button_prepare_light_sleep(int *level) {
+    if (level) *level = 0;
+    if (!s_ready) {
+        ESP_LOGE(TAG, "按键未就绪,拒绝进入浅睡停轮询");
+        return ESP_ERR_INVALID_STATE;
+    }
+    esp_err_t err = iot_button_stop();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "停按键轮询失败: %s", esp_err_to_name(err));
+        return err;
+    }
+    // 按键脚切回数字输入,供浅睡 GPIO 低电平唤醒;松开态由板上 10k 外部上拉
+    // 定义到 3300mV,无需内部上拉(加了还得在 resume 前撤掉,徒增恢复路径)。
+    const gpio_num_t pin = (gpio_num_t)BSP_BTN_GPIO;
+    err = gpio_set_direction(pin, GPIO_MODE_INPUT);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "按键脚切回数字输入失败: %s", esp_err_to_name(err));
+        (void)iot_button_resume();
+        return err;
+    }
+    if (level) *level = gpio_get_level(pin);
+    return ESP_OK;
+}
+
+esp_err_t bsp_button_restore_after_light_sleep(void) {
+    esp_err_t err = iot_button_resume();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "恢复按键轮询失败: %s", esp_err_to_name(err));
+        return err;
+    }
+    // 采样日志即健康检查:恢复后应回到松开态 ~3300mV;异常说明引脚交回有问题。
+    ESP_LOGI(TAG, "按键轮询已恢复,当前采样 %d mV", bsp_button_read_mv());
+    return ESP_OK;
+}
+
 esp_err_t bsp_button_prepare_deep_sleep(int *level) {
     if (level) *level = 0;
 

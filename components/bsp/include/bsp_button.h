@@ -41,6 +41,19 @@ esp_err_t bsp_button_init(bsp_btn_cb_t cb, void *user);
 // 那时按键还活着。)
 esp_err_t bsp_button_prepare_deep_sleep(int *level);
 
+// light sleep 前的按键停轮询:停掉组件的周期轮询(不再产生任何事件),再把按键脚
+// 切回普通数字输入,供 light sleep 的 GPIO 低电平唤醒使用。与 prepare_deep_sleep
+// 不同,这是【非终态】操作:ADC unit、校准句柄与三个按键设备全部保留。
+// 不加内部上拉:板上 10k 外部上拉已把松开态定义到 3300mV,浅睡期间数字域保持配置。
+// level 回填当时该脚电平,1 = 松开。失败时按键保持原状,可安全继续正常轮询。
+// 运行上下文:任意任务;调用后到 restore 之前不会有任何按键事件。
+esp_err_t bsp_button_prepare_light_sleep(int *level);
+
+// 从 light sleep 恢复:重新启动按键轮询。必须与 prepare_light_sleep 成对调用,
+// 且在调用前按键应当已松手(唤醒键的按下事件被有意吞掉,由调用方等松手)。
+// 成功后回调恢复,失败时按键保持停用状态,返回错误码。
+esp_err_t bsp_button_restore_after_light_sleep(void);
+
 // 读当前 ADC 原始电压(mV)。松开时约 3300;按住某键时约为该键的分压值。
 // ★ 换了分压/上拉阻值后,用它测出自己的三档电压,再改 bsp_pins.h 的 BSP_BTN_MV_TABLE。
 // 读取失败返回 -1。

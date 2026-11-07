@@ -94,6 +94,18 @@ esp_err_t iot_button_register_cb(button_handle_t h, button_event_t ev, button_ev
     cb(h, u); // No user callbacks may escape a partial initialization.
     return ++callback_calls == fail_callback ? ESP_ERR_NO_MEM : ESP_OK;
 }
+bool timer_running = true;   // 共享轮询定时器状态(浅睡停/复)
+int stop_calls, resume_calls;
+esp_err_t iot_button_stop(void) {
+    ++stop_calls;
+    if (!timer_running) return ESP_ERR_INVALID_STATE;
+    timer_running = false; return ESP_OK;
+}
+esp_err_t iot_button_resume(void) {
+    ++resume_calls;
+    if (timer_running) return ESP_ERR_INVALID_STATE;
+    timer_running = true; return ESP_OK;
+}
 static void event_cb(bsp_btn_t btn, bsp_btn_ev_t ev, void *u) {
     assert(btn == BSP_BTN_OK && ev == BSP_BTN_CLICK && u == &events);
     ++events;
@@ -101,6 +113,7 @@ static void event_cb(bsp_btn_t btn, bsp_btn_ev_t ev, void *u) {
 static void reset_faults(void) {
     fail_adc = fail_channel = fail_cal = fail_read = fail_convert = fail_delete = 0;
     fail_create = fail_callback = create_calls = callback_calls = 0;
+    stop_calls = resume_calls = 0; timer_running = true;
 }
 static void assert_clean(void) {
     assert(!adc_live && !cal_live && !live_buttons && !s_ready && !s_adc && !s_cali);
@@ -155,6 +168,50 @@ static void check_deep_sleep_prepare(void) {
 
     assert(bsp_button_init(event_cb, &events) == ESP_OK);    // the BSP stays reusable
 }
+// Light sleep pauses polling without tearing anything down (unlike deep sleep):
+// the shared timer must stop, the pad must come back as a plain digital input with
+// NO internal pull (the onboard 10k defines the idle level), and restore must
+// restart polling. A GPIO failure rolls the timer back on before propagating.
+static void check_light_sleep_prepare(void) {
+    reset_faults();
+    gpio_direction_calls = gpio_pull_calls = gpio_level_calls = delay_calls = 0;
+    stop_calls = resume_calls = 0; timer_running = true;
+    gpio_level = 1;   // 上一个用例可能把松开态留在 0
+    assert(bsp_button_init(event_cb, &events) == ESP_OK);
+
+    int level = -1;
+    assert(bsp_button_prepare_light_sleep(&level) == ESP_OK);
+    assert(level == 1 && timer_running == false && stop_calls == 1);
+    assert(gpio_direction_calls == 1 && gpio_pull_calls == 0 && delay_calls == 0);
+    assert(gpio_last_pin == BSP_BTN_GPIO && gpio_last_mode == GPIO_MODE_INPUT);
+    assert(live_buttons == BSP_BTN_COUNT && adc_live && cal_live);   // 非终态:资源全保留
+
+    // ADC reads keep working while polling is paused (the session's release wait).
+    raw_mv = 3300; clock_us += 2000;
+    assert(bsp_button_read_mv() == 3300);
+
+    // Restore restarts polling; the sampled log read must not fault.
+    assert(bsp_button_restore_after_light_sleep() == ESP_OK);
+    assert(timer_running == true && resume_calls == 1);
+
+    // A key held at entry is reported as level 0. (prepare/restore are strictly
+    // paired: a double prepare hits the component's INVALID_STATE, as in prod.)
+    gpio_level = 0; level = -1;
+    assert(bsp_button_prepare_light_sleep(&level) == ESP_OK);
+    assert(level == 0);
+    assert(timer_running == false);
+    assert(bsp_button_restore_after_light_sleep() == ESP_OK);
+
+    // A pin failure propagates AND rewinds: polling must not stay paused.
+    fail_gpio = 1; level = -1;
+    assert(bsp_button_prepare_light_sleep(&level) == ESP_FAIL);
+    assert(level == 0 && timer_running == true && resume_calls == 3);
+    fail_gpio = 0;
+
+    assert(bsp_button_prepare_light_sleep(NULL) == ESP_OK);   // level is optional
+    assert(bsp_button_restore_after_light_sleep() == ESP_OK);
+    assert(live_buttons == BSP_BTN_COUNT && adc_live && cal_live);
+}
 static void retry_success(void) {
     assert_clean(); reset_faults();
     assert(bsp_button_init(event_cb, &events) == ESP_OK);
@@ -205,5 +262,6 @@ int main(void) {
     assert(bsp_button_init(event_cb, &events) == ESP_ERR_INVALID_STATE);
     fail_delete = 0; assert(button_cleanup() == ESP_OK); retry_success();
     check_deep_sleep_prepare();
+    check_light_sleep_prepare();
     puts("BSP button fault-injection tests: PASS");
 }

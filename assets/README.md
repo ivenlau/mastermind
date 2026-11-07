@@ -52,6 +52,9 @@ Store reusable source images and generated display assets in `images/`.
 | [`images/screenshots/realshot5.png`](images/screenshots/realshot5.png) | 240 × 320, PNG | Real-device capture: home screen, brass theme, status-bar clock. Reserved cover material for community play updates. |
 | [`images/screenshots/realshot7.png`](images/screenshots/realshot7.png) | 240 × 320, PNG | Real-device capture: Standard-mode game board with canvas rows. Reserved cover material for community play updates. |
 | [`images/screenshots/realshot8.png`](images/screenshots/realshot8.png) | 240 × 320, PNG | Real-device capture: Digits mode with ten distinct digit colors. Reserved cover material for community play updates. |
+| [`images/screenshots/image1.png`](images/screenshots/image1.png) | 768 × 1024, PNG RGB | AI-generated promo poster: "Super Cipher Machine" logo and mascot over a stylized Standard-mode board with the solve hint. Reserved main cover for the gameplay release. Supplied by the fork owner on 2026-11-07. |
+| [`images/screenshots/image2.png`](images/screenshots/image2.png) | 1536 × 2048, PNG RGB | AI-generated promo render: the AI Passport playing a Standard-mode game on a desk. Reserved main cover for the gameplay release. Supplied by the fork owner on 2026-11-07. |
+| [`images/screenshots/image3.png`](images/screenshots/image3.png) | 768 × 1024, PNG RGB | AI-generated promo render: the AI Passport clipped to a backpack strap running Digits mode. Reserved main cover for the gameplay release. Supplied by the fork owner on 2026-11-07. |
 
 - Use descriptive names and document dimensions, pixel format, conversion steps, and destination.
 - Prefer formats suitable for the 240 × 320 RGB565 display and account for Flash and internal RAM.

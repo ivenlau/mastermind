@@ -50,6 +50,9 @@ UI 文案变更未重新生成时，`tests/test_font_inventory.py` 会令静态�
 | [`images/screenshots/realshot5.png`](images/screenshots/realshot5.png) | 240 × 320，PNG | 实机截图：黄铜主题主页（状态栏时钟）。社区玩法更新的预留封面素材。 |
 | [`images/screenshots/realshot7.png`](images/screenshots/realshot7.png) | 240 × 320，PNG | 实机截图：标准模式对局棋盘（画布占位行）。社区玩法更新的预留封面素材。 |
 | [`images/screenshots/realshot8.png`](images/screenshots/realshot8.png) | 240 × 320，PNG | 实机截图：数字密码模式（十色数字珠）。社区玩法更新的预留封面素材。 |
+| [`images/screenshots/image1.png`](images/screenshots/image1.png) | 768 × 1024，PNG RGB | AI 生成宣传海报："超级密码机"Logo 与吉祥物、风格化标准模式棋盘及提示语。玩法发布的预留主图。仓库所有者于 2026-11-07 提供。 |
+| [`images/screenshots/image2.png`](images/screenshots/image2.png) | 1536 × 2048，PNG RGB | AI 生成宣传渲染图：桌面场景中正在游玩标准模式的 AI Passport。玩法发布的预留主图。仓库所有者于 2026-11-07 提供。 |
+| [`images/screenshots/image3.png`](images/screenshots/image3.png) | 768 × 1024，PNG RGB | AI 生成宣传渲染图：挂在背包带上、运行数字密码模式的 AI Passport。玩法发布的预留主图。仓库所有者于 2026-11-07 提供。 |
 
 - 使用描述性命名，并记录尺寸、像素格式、转换步骤与目标路径。
 - 优先采用适合 240 × 320 RGB565 显示的格式，并纳入 Flash 与内部 RAM 考量。

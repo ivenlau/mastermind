@@ -72,7 +72,7 @@ static void battery_draw(int soc) {
     }
     uint32_t color = (soc <= 15) ? t->bad : ((soc <= 35) ? t->warn : t->ok);
     int w = soc > 100 ? 100 : soc;
-    lv_obj_set_width(s_batt_fill, 2 + (18 * w / 100));
+    lv_obj_set_width(s_batt_fill, 2 + (14 * w / 100));  // 2..16:内容区内四周留 2px,全量程不顶框
     lv_obj_set_style_bg_color(s_batt_fill, lv_color_hex(color), LV_PART_MAIN);
     lv_label_set_text_fmt(s_batt_text, "%d%%", soc);
 }
@@ -343,7 +343,7 @@ void shell_init(void) {
     lv_obj_remove_flag(s_batt_box, LV_OBJ_FLAG_SCROLLABLE);
     s_batt_fill = lv_obj_create(s_batt_box);
     lv_obj_set_pos(s_batt_fill, 1, 1);
-    lv_obj_set_size(s_batt_fill, 12, 8);
+    lv_obj_set_size(s_batt_fill, 12, 6);   // 高 6:内容区(18×8)上下各留 2px 对称内嵌
     lv_obj_set_style_radius(s_batt_fill, 2, LV_PART_MAIN);
     lv_obj_set_style_border_width(s_batt_fill, 0, LV_PART_MAIN);
     lv_obj_remove_flag(s_batt_fill, LV_OBJ_FLAG_SCROLLABLE);

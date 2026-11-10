@@ -190,10 +190,15 @@ static void circle_fill(lv_obj_t *o, uint32_t color) {
 static void circle_hollow(lv_obj_t *o) {
     if (!o) return;
     lv_obj_set_style_bg_opa(o, LV_OPA_TRANSP, 0);
+    // 空心=预置占位圈:描边复位主题描边色
+    lv_obj_set_style_border_width(o, 1, 0);
+    lv_obj_set_style_border_color(o, lv_color_hex(theme_cur()->stroke), 0);
 }
 
 // 选中环:粗描边用独立 token,和填充色永远区分(需求)。
 // 不用盒阴影发光——LVGL box_shadow 软渲染路径触发过看门狗死循环,全应用禁用。
+// 环的外扩由 board_refresh 放大对象实现;此处只管描边样式,纯 border 图元
+// (outline 会半像素混底色,环会显脏,勿用)。
 static void circle_select(lv_obj_t *o, bool on) {
     if (!o) return;
     const app_theme_t *t = theme_cur();
@@ -204,6 +209,20 @@ static void circle_select(lv_obj_t *o, bool on) {
         lv_obj_set_style_border_width(o, 1, 0);
         lv_obj_set_style_border_color(o, lv_color_hex(t->stroke), 0);
     }
+}
+
+// 实心圆点(大圆/反馈小圆):描边与填充同色,色珠刚好盖满预置占位圈,
+// 不留背景环,可见轮廓即占位圈几何本体(需求)。
+// 选中珠走 circle_select:对象已外扩 1px,3px 粗描边整体外移,与填充色永远区分。
+static void peg_fill(lv_obj_t *o, uint32_t color, bool selected) {
+    if (!o) return;
+    circle_fill(o, color);
+    if (selected) {
+        circle_select(o, true);
+        return;
+    }
+    lv_obj_set_style_border_width(o, 1, 0);
+    lv_obj_set_style_border_color(o, lv_color_hex(color), 0);
 }
 
 static lv_obj_t *make_circle(lv_obj_t *parent, int x, int y, int size) {
@@ -242,15 +261,21 @@ static void board_refresh(void) {
 
         for (uint8_t i = 0; i < g.rules.slots; i++) {
             // 大圆:猜测色 / 当前行实时预览 / 空心占位
+            bool sel = current && i == g.cursor;
+            if (row->big[i]) {
+                // 选中环外扩 1px(需求):对象放大 2px 居中,3px 粗描边整体外移,
+                // 环宽不变、色珠可见 17px;纯 border 渲染无混色。
+                lv_obj_set_pos(row->big[i], s_big_x[i] - (sel ? 1 : 0), s_row_y[r] - (sel ? 1 : 0));
+                lv_obj_set_size(row->big[i], s_big + (sel ? 2 : 0), s_big + (sel ? 2 : 0));
+            }
             if (submitted || current) {
                 int color = submitted ? g.trials[r].guess[i] : g.cur[i];
                 uint32_t fill = peg_color_of(color);
-                circle_fill(row->big[i], fill);
+                peg_fill(row->big[i], fill, sel);
                 if (g.rules.colors > UI_PEG_COLORS && row->digit[i]) {
                     lv_label_set_text_fmt(row->digit[i], "%d", color);
                     lv_obj_set_style_text_color(row->digit[i], lv_color_hex(ink_of(fill)), 0);
                 }
-                circle_select(row->big[i], !submitted && i == g.cursor);
             } else {
                 circle_hollow(row->big[i]);
                 circle_select(row->big[i], false);
@@ -274,9 +299,9 @@ static void board_refresh(void) {
                 uint8_t exact = fb.exact;
                 uint8_t partial = g.rules.dark ? 0 : fb.partial;
                 if (i < exact) {
-                    circle_fill(row->small[i], t->exact);
+                    peg_fill(row->small[i], t->exact, false);
                 } else if (i < exact + partial) {
-                    circle_fill(row->small[i], t->partial);
+                    peg_fill(row->small[i], t->partial, false);
                 } else {
                     circle_hollow(row->small[i]);
                 }
